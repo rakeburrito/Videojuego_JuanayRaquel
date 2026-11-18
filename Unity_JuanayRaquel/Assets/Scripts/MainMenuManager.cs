@@ -15,7 +15,7 @@ public class MainMenuManager : MonoBehaviour
     {
         PlayButtonClickSound();
         Time.timeScale = 1f;
-        SceneManager.LoadScene("GameScene"); // Cambia por el nombre de tu escena de juego
+        SceneManager.LoadScene("main"); // Cambia por el nombre de tu escena de juego
     }
 
     public void OpenCredits(bool open)
