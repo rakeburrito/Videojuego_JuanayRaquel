@@ -55,6 +55,11 @@ public class PlayerPlatformerController : MonoBehaviour
             instructionsPanel.SetActive(true);
             Time.timeScale = 0f;
         }
+        else
+        {
+            // Si no hay panel de instrucciones, aseguramos que el juego corra con normalidad
+            Time.timeScale = 1f;
+        }
 
         UpdateHUD();
     }
@@ -62,41 +67,39 @@ public class PlayerPlatformerController : MonoBehaviour
     void Update()
     {
         if (isDead) return;
-
-        // Si el juego está en pausa, no procesar movimiento ni salto
-        if (Time.timeScale == 0f) return;
+        
+        // Si el juego está pausado, no leemos controles
+        if (Mathf.Approximately(Time.timeScale, 0f)) return;
 
         horizontalInput = Input.GetAxis("Horizontal");
 
-        // Control de Animaciones
         if (animator != null)
         {
-            animator.SetBool("isruning", horizontalInput != 0);
+            animator.SetBool("IsRunning", horizontalInput != 0);
         }
 
-        // Salto
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
             rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
             PlaySFX(jumpSFX);
         }
-
+        
         FlipSprite();
     }
 
     void FixedUpdate()
     {
-        if (isDead || Time.timeScale == 0f) return;
+        if (isDead || Mathf.Approximately(Time.timeScale, 0f)) return;
 
         // Comprobación de suelo mediante overlap
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
         if (animator != null)
         {
-            animator.SetBool("isjumping", !isGrounded);
+            animator.SetBool("IsJumping", !isGrounded);
         }
 
-        // Aplicar velocidad al Rigidbody2D
+        // Aplicar velocidad al Rigidbody2D (compatible con Unity moderno)
         rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
     }
 
@@ -104,7 +107,7 @@ public class PlayerPlatformerController : MonoBehaviour
     {
         if (isDead) return;
 
-        // Coleccionable Tipo A (ej. Moneda = 10 pts)
+        // Coleccionable Tipo A
         if (other.CompareTag("CollectibleA"))
         {
             typeACollected++;
@@ -113,7 +116,7 @@ public class PlayerPlatformerController : MonoBehaviour
             Destroy(other.gameObject);
             UpdateHUD();
         }
-        // Coleccionable Tipo B (ej. Gema = 25 pts)
+        // Coleccionable Tipo B
         else if (other.CompareTag("CollectibleB"))
         {
             typeBCollected++;
@@ -122,7 +125,7 @@ public class PlayerPlatformerController : MonoBehaviour
             Destroy(other.gameObject);
             UpdateHUD();
         }
-        // Característica 1: Cofre interactuable
+        // Cofre interactuable
         else if (other.CompareTag("Chest"))
         {
             Chest chest = other.GetComponent<Chest>();
@@ -145,7 +148,7 @@ public class PlayerPlatformerController : MonoBehaviour
     {
         if (isDead) return;
 
-        // Característica 2 y Derrota: Enemigos o Trampas
+        // Enemigos o Trampas
         if (collision.gameObject.CompareTag("Enemy") || collision.gameObject.CompareTag("Hazard"))
         {
             Die();
