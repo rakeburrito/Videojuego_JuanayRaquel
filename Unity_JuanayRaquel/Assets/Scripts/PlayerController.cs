@@ -21,10 +21,10 @@ public class PlayerPlatformerController : MonoBehaviour
     public int totalScore = 0;
 
     public int coinsCollected = 0;
-    public int totalCoins = 10;
+    public int totalCoins = 15;
 
     public int diamondsCollected = 0;
-    public int totalDiamonds = 5;
+    public int totalDiamonds = 15;
 
     public int keysCollected = 0;
     public int totalKeys = 1;
@@ -174,16 +174,25 @@ public class PlayerPlatformerController : MonoBehaviour
         }
 
         // Cofre interactuable
+        // Cofre interactuable
         else if (other.CompareTag("Chest"))
         {
             Chest chest = other.GetComponent<Chest>();
 
             if (chest != null && !chest.isOpen)
-            {
-                int bonus = chest.OpenChest();
-                totalScore += bonus;
-                PlaySFX(chestSFX);
-                UpdateHUD();
+             {
+                int bonus = chest.OpenChest(
+                    coinsCollected,
+                    diamondsCollected,
+                    keysCollected
+                );
+
+                if (bonus > 0)
+                {
+                    totalScore += bonus;
+                    PlaySFX(chestSFX);
+                    UpdateHUD();
+                }
             }
         }
 
