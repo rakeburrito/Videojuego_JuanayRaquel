@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
@@ -11,17 +12,27 @@ public class PlayerPlatformerController : MonoBehaviour
     public LayerMask groundLayer;
     public float groundCheckRadius = 0.2f;
 
+    [Header("Reaparición y Límites")]
+    public Transform respawnPoint;
+    public float respawnDelay = 1f;
+
     [Header("Puntuación y Coleccionables")]
     public int totalScore = 0;
-    public int typeACollected = 0;
-    public int totalTypeA = 10;
-    public int typeBCollected = 0;
-    public int totalTypeB = 5;
+
+    public int coinsCollected = 0;
+    public int totalCoins = 10;
+
+    public int diamondsCollected = 0;
+    public int totalDiamonds = 5;
+
+    public int keysCollected = 0;
+    public int totalKeys = 1;
 
     [Header("Interfaz (UI)")]
     public TextMeshProUGUI textScore;
-    public TextMeshProUGUI textCollectiblesA;
-    public TextMeshProUGUI textCollectiblesB;
+    public TextMeshProUGUI textCoins;
+    public TextMeshProUGUI textDiamonds;
+    public TextMeshProUGUI textKeys;
     public GameObject instructionsPanel;
     public GameObject pausePanel;
     public GameObject settingsPanelInGame;
@@ -32,6 +43,7 @@ public class PlayerPlatformerController : MonoBehaviour
     public AudioSource audioSource;
     public AudioClip jumpSFX;
     public AudioClip collectSFX;
+    public AudioClip keySFX;
     public AudioClip chestSFX;
     public AudioClip deathSFX;
     public AudioClip winSFX;
@@ -43,11 +55,20 @@ public class PlayerPlatformerController : MonoBehaviour
     private bool isGrounded;
     private bool isFacingRight = true;
     private bool isDead = false;
+    private bool isRespawning = false;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
+
+        // Si no asignas un RespawnPoint manual, usa la posición inicial del jugador
+        if (respawnPoint == null)
+        {
+            GameObject autoSpawn = new GameObject("AutoRespawnPoint");
+            autoSpawn.transform.position = transform.position;
+            respawnPoint = autoSpawn.transform;
+        }
 
         // Pausa inicial para el panel de instrucciones
         if (instructionsPanel != null)
@@ -57,7 +78,6 @@ public class PlayerPlatformerController : MonoBehaviour
         }
         else
         {
-            // Si no hay panel de instrucciones, aseguramos que el juego corra con normalidad
             Time.timeScale = 1f;
         }
 
@@ -66,8 +86,8 @@ public class PlayerPlatformerController : MonoBehaviour
 
     void Update()
     {
-        if (isDead) return;
-        
+        if (isDead || isRespawning) return;
+
         // Si el juego está pausado, no leemos controles
         if (Mathf.Approximately(Time.timeScale, 0f)) return;
 
@@ -83,13 +103,13 @@ public class PlayerPlatformerController : MonoBehaviour
             rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
             PlaySFX(jumpSFX);
         }
-        
+
         FlipSprite();
     }
 
     void FixedUpdate()
     {
-        if (isDead || Mathf.Approximately(Time.timeScale, 0f)) return;
+        if (isDead || isRespawning || Mathf.Approximately(Time.timeScale, 0f)) return;
 
         // Comprobación de suelo mediante overlap
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
@@ -99,29 +119,45 @@ public class PlayerPlatformerController : MonoBehaviour
             animator.SetBool("IsJumping", !isGrounded);
         }
 
-        // Aplicar velocidad al Rigidbody2D (compatible con Unity moderno)
+        // Aplicar velocidad al Rigidbody2D
         rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (isDead) return;
+        if (isDead || isRespawning) return;
 
-        // Coleccionable Tipo A
-        if (other.CompareTag("CollectibleA"))
+        // Caída al vacío (Boundary)
+        if (other.CompareTag("Boundary"))
         {
-            typeACollected++;
+            StartCoroutine(RespawnAfterFall());
+            return;
+        }
+
+        // Coleccionable: Coin
+        if (other.CompareTag("Coin"))
+        {
+            coinsCollected++;
             totalScore += 10;
             PlaySFX(collectSFX);
             Destroy(other.gameObject);
             UpdateHUD();
         }
-        // Coleccionable Tipo B
-        else if (other.CompareTag("CollectibleB"))
+        // Coleccionable: Diamond
+        else if (other.CompareTag("Diamond"))
         {
-            typeBCollected++;
+            diamondsCollected++;
             totalScore += 25;
             PlaySFX(collectSFX);
+            Destroy(other.gameObject);
+            UpdateHUD();
+        }
+        // Coleccionable: Key
+        else if (other.CompareTag("Key"))
+        {
+            keysCollected++;
+            totalScore += 50;
+            PlaySFX(keySFX != null ? keySFX : collectSFX);
             Destroy(other.gameObject);
             UpdateHUD();
         }
@@ -146,13 +182,33 @@ public class PlayerPlatformerController : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (isDead) return;
+        if (isDead || isRespawning) return;
 
         // Enemigos o Trampas
         if (collision.gameObject.CompareTag("Enemy") || collision.gameObject.CompareTag("Hazard"))
         {
             Die();
         }
+    }
+
+    private IEnumerator RespawnAfterFall()
+    {
+        isRespawning = true;
+        horizontalInput = 0f;
+        rb.linearVelocity = Vector2.zero;
+
+        if (animator != null)
+        {
+            animator.SetBool("IsRunning", false);
+        }
+
+        PlaySFX(deathSFX);
+
+        yield return new WaitForSecondsRealtime(respawnDelay);
+
+        transform.position = respawnPoint.position;
+        rb.linearVelocity = Vector2.zero;
+        isRespawning = false;
     }
 
     public void CloseInstructions()
@@ -210,8 +266,9 @@ public class PlayerPlatformerController : MonoBehaviour
     private void UpdateHUD()
     {
         if (textScore != null) textScore.text = "Puntaje: " + totalScore;
-        if (textCollectiblesA != null) textCollectiblesA.text = $"Monedas: {typeACollected}/{totalTypeA}";
-        if (textCollectiblesB != null) textCollectiblesB.text = $"Gemas: {typeBCollected}/{totalTypeB}";
+        if (textCoins != null) textCoins.text = $"Monedas: {coinsCollected}/{totalCoins}";
+        if (textDiamonds != null) textDiamonds.text = $"Diamantes: {diamondsCollected}/{totalDiamonds}";
+        if (textKeys != null) textKeys.text = $"Llaves: {keysCollected}/{totalKeys}";
     }
 
     private void FlipSprite()
