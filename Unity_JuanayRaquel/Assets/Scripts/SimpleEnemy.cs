@@ -1,3 +1,4 @@
+
 using UnityEngine;
 
 public class SimpleEnemy : MonoBehaviour
@@ -5,7 +6,14 @@ public class SimpleEnemy : MonoBehaviour
     public float speed = 2f;
     public Transform leftBound;
     public Transform rightBound;
+
     private bool movingRight = true;
+    private SpriteRenderer spriteRenderer;
+
+    void Start()
+    {
+        spriteRenderer = GetComponent<SpriteRenderer>();
+    }
 
     void Update()
     {
@@ -14,12 +22,22 @@ public class SimpleEnemy : MonoBehaviour
         if (movingRight)
         {
             transform.Translate(Vector2.right * speed * Time.deltaTime);
-            if (transform.position.x >= rightBound.position.x) movingRight = false;
+
+            if (transform.position.x >= rightBound.position.x)
+            {
+                movingRight = false;
+                spriteRenderer.flipX = false;
+            }
         }
         else
         {
             transform.Translate(Vector2.left * speed * Time.deltaTime);
-            if (transform.position.x <= leftBound.position.x) movingRight = true;
+
+            if (transform.position.x <= leftBound.position.x)
+            {
+                movingRight = true;
+                spriteRenderer.flipX = true;
+            }
         }
     }
 }
