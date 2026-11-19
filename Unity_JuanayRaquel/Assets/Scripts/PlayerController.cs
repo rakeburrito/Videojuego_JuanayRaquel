@@ -1,3 +1,4 @@
+
 using System.Collections;
 using UnityEngine;
 using TMPro;
@@ -12,7 +13,7 @@ public class PlayerPlatformerController : MonoBehaviour
     public LayerMask groundLayer;
     public float groundCheckRadius = 0.2f;
 
-    [Header("Reaparición y Límites")]
+    [Header("Reaparición")]
     public Transform respawnPoint;
     public float respawnDelay = 1f;
 
@@ -62,7 +63,7 @@ public class PlayerPlatformerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
 
-        // Si no asignas un RespawnPoint manual, usa la posición inicial del jugador
+        // Crear punto de aparición automático
         if (respawnPoint == null)
         {
             GameObject autoSpawn = new GameObject("AutoRespawnPoint");
@@ -109,10 +110,15 @@ public class PlayerPlatformerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isDead || isRespawning || Mathf.Approximately(Time.timeScale, 0f)) return;
+        if (isDead || isRespawning ||
+            Mathf.Approximately(Time.timeScale, 0f)) return;
 
         // Comprobación de suelo mediante overlap
-        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+        isGrounded = Physics2D.OverlapCircle(
+            groundCheck.position,
+            groundCheckRadius,
+            groundLayer
+        );
 
         if (animator != null)
         {
@@ -120,14 +126,17 @@ public class PlayerPlatformerController : MonoBehaviour
         }
 
         // Aplicar velocidad al Rigidbody2D
-        rb.linearVelocity = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
+        rb.linearVelocity = new Vector2(
+            horizontalInput * moveSpeed,
+            rb.linearVelocity.y
+        );
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (isDead || isRespawning) return;
 
-        // Caída al vacío (Boundary)
+        // Caída al vacío
         if (other.CompareTag("Boundary"))
         {
             StartCoroutine(RespawnAfterFall());
@@ -143,6 +152,7 @@ public class PlayerPlatformerController : MonoBehaviour
             Destroy(other.gameObject);
             UpdateHUD();
         }
+
         // Coleccionable: Diamond
         else if (other.CompareTag("Diamond"))
         {
@@ -152,6 +162,7 @@ public class PlayerPlatformerController : MonoBehaviour
             Destroy(other.gameObject);
             UpdateHUD();
         }
+
         // Coleccionable: Key
         else if (other.CompareTag("Key"))
         {
@@ -161,10 +172,12 @@ public class PlayerPlatformerController : MonoBehaviour
             Destroy(other.gameObject);
             UpdateHUD();
         }
+
         // Cofre interactuable
         else if (other.CompareTag("Chest"))
         {
             Chest chest = other.GetComponent<Chest>();
+
             if (chest != null && !chest.isOpen)
             {
                 int bonus = chest.OpenChest();
@@ -173,10 +186,18 @@ public class PlayerPlatformerController : MonoBehaviour
                 UpdateHUD();
             }
         }
+
         // Condición de Victoria
         else if (other.CompareTag("WinCondition"))
         {
             CompleteLevel();
+        }
+
+        // Enemigos o trampas con Collider2D Trigger
+        else if (other.CompareTag("Enemy") ||
+                 other.CompareTag("Hazard"))
+        {
+            StartCoroutine(RespawnAfterFall());
         }
     }
 
@@ -184,22 +205,26 @@ public class PlayerPlatformerController : MonoBehaviour
     {
         if (isDead || isRespawning) return;
 
-        // Enemigos o Trampas
-        if (collision.gameObject.CompareTag("Enemy") || collision.gameObject.CompareTag("Hazard"))
+        // Enemigos o trampas con Collider2D normal
+        if (collision.gameObject.CompareTag("Enemy") ||
+            collision.gameObject.CompareTag("Hazard"))
         {
-            Die();
+            StartCoroutine(RespawnAfterFall());
         }
     }
 
+    // Sistema de reaparición
     private IEnumerator RespawnAfterFall()
     {
         isRespawning = true;
+
         horizontalInput = 0f;
         rb.linearVelocity = Vector2.zero;
 
         if (animator != null)
         {
             animator.SetBool("IsRunning", false);
+            animator.SetBool("IsJumping", false);
         }
 
         PlaySFX(deathSFX);
@@ -208,12 +233,15 @@ public class PlayerPlatformerController : MonoBehaviour
 
         transform.position = respawnPoint.position;
         rb.linearVelocity = Vector2.zero;
+
         isRespawning = false;
     }
 
     public void CloseInstructions()
     {
-        if (instructionsPanel != null) instructionsPanel.SetActive(false);
+        if (instructionsPanel != null)
+            instructionsPanel.SetActive(false);
+
         Time.timeScale = 1f;
     }
 
@@ -240,14 +268,21 @@ public class PlayerPlatformerController : MonoBehaviour
         isDead = true;
         PlaySFX(deathSFX);
         rb.linearVelocity = Vector2.zero;
-        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(true);
+
         Time.timeScale = 0f;
     }
 
     private void CompleteLevel()
     {
         PlaySFX(winSFX);
-        if (winPanel != null) winPanel.SetActive(true);
+
+        if (winPanel != null)
+            winPanel.SetActive(true);
+
+        isDead = true;
         Time.timeScale = 0f;
     }
 
@@ -265,22 +300,39 @@ public class PlayerPlatformerController : MonoBehaviour
 
     private void UpdateHUD()
     {
-        if (textScore != null) textScore.text = "Puntaje: " + totalScore;
-        if (textCoins != null) textCoins.text = $"Monedas: {coinsCollected}/{totalCoins}";
-        if (textDiamonds != null) textDiamonds.text = $"Diamantes: {diamondsCollected}/{totalDiamonds}";
-        if (textKeys != null) textKeys.text = $"Llaves: {keysCollected}/{totalKeys}";
+        if (textScore != null)
+            textScore.text = "Puntaje: " + totalScore;
+
+        if (textCoins != null)
+            textCoins.text = $"Monedas: {coinsCollected}/{totalCoins}";
+
+        if (textDiamonds != null)
+            textDiamonds.text = $"Diamantes: {diamondsCollected}/{totalDiamonds}";
+
+        if (textKeys != null)
+            textKeys.text = $"Llaves: {keysCollected}/{totalKeys}";
     }
 
     private void FlipSprite()
     {
         if (horizontalInput < 0 && isFacingRight)
         {
-            transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+            transform.localScale = new Vector3(
+                -Mathf.Abs(transform.localScale.x),
+                transform.localScale.y,
+                transform.localScale.z
+            );
+
             isFacingRight = false;
         }
         else if (horizontalInput > 0 && !isFacingRight)
         {
-            transform.localScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+            transform.localScale = new Vector3(
+                Mathf.Abs(transform.localScale.x),
+                transform.localScale.y,
+                transform.localScale.z
+            );
+
             isFacingRight = true;
         }
     }
@@ -296,7 +348,11 @@ public class PlayerPlatformerController : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         if (groundCheck == null) return;
+
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        Gizmos.DrawWireSphere(
+            groundCheck.position,
+            groundCheckRadius
+        );
     }
 }
