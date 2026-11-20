@@ -21,13 +21,16 @@ public class PlayerPlatformerController : MonoBehaviour
     public int totalScore = 0;
 
     public int coinsCollected = 0;
-    public int totalCoins = 15;
+    public int totalCoins = 55;
 
     public int diamondsCollected = 0;
     public int totalDiamonds = 15;
 
     public int keysCollected = 0;
     public int totalKeys = 1;
+
+    [Header("Objetivo del Nivel")]
+    public Chest chest;
 
     [Header("Interfaz (UI)")]
     public TextMeshProUGUI textScore;
@@ -49,7 +52,7 @@ public class PlayerPlatformerController : MonoBehaviour
     public AudioClip deathSFX;
     public AudioClip winSFX;
 
-    // Estado Interno
+    // Estado interno
     private Rigidbody2D rb;
     private Animator animator;
     private float horizontalInput;
@@ -71,7 +74,7 @@ public class PlayerPlatformerController : MonoBehaviour
             respawnPoint = autoSpawn.transform;
         }
 
-        // Pausa inicial para el panel de instrucciones
+        // Pausa inicial
         if (instructionsPanel != null)
         {
             instructionsPanel.SetActive(true);
@@ -89,7 +92,6 @@ public class PlayerPlatformerController : MonoBehaviour
     {
         if (isDead || isRespawning) return;
 
-        // Si el juego está pausado, no leemos controles
         if (Mathf.Approximately(Time.timeScale, 0f)) return;
 
         horizontalInput = Input.GetAxis("Horizontal");
@@ -113,7 +115,6 @@ public class PlayerPlatformerController : MonoBehaviour
         if (isDead || isRespawning ||
             Mathf.Approximately(Time.timeScale, 0f)) return;
 
-        // Comprobación de suelo mediante overlap
         isGrounded = Physics2D.OverlapCircle(
             groundCheck.position,
             groundCheckRadius,
@@ -125,7 +126,6 @@ public class PlayerPlatformerController : MonoBehaviour
             animator.SetBool("IsJumping", !isGrounded);
         }
 
-        // Aplicar velocidad al Rigidbody2D
         rb.linearVelocity = new Vector2(
             horizontalInput * moveSpeed,
             rb.linearVelocity.y
@@ -139,51 +139,51 @@ public class PlayerPlatformerController : MonoBehaviour
         // Caída al vacío
         if (other.CompareTag("Boundary"))
         {
-            if (gameOverPanel != null)
-                gameOverPanel.SetActive(true);
-
             StartCoroutine(RespawnAfterFall());
             return;
         }
 
-        // Coleccionable: Coin
+        // Monedas
         if (other.CompareTag("Coin"))
         {
             coinsCollected++;
             totalScore += 10;
+
             PlaySFX(collectSFX);
             Destroy(other.gameObject);
+
             UpdateHUD();
         }
 
-        // Coleccionable: Diamond
+        // Diamantes
         else if (other.CompareTag("Diamond"))
         {
             diamondsCollected++;
             totalScore += 25;
+
             PlaySFX(collectSFX);
             Destroy(other.gameObject);
+
             UpdateHUD();
         }
 
-        // Coleccionable: Key
+        // Llaves
         else if (other.CompareTag("Key"))
         {
             keysCollected++;
             totalScore += 50;
+
             PlaySFX(keySFX != null ? keySFX : collectSFX);
             Destroy(other.gameObject);
+
             UpdateHUD();
         }
 
-        // Cofre interactuable
-        // Cofre interactuable
+        // Cofre
         else if (other.CompareTag("Chest"))
         {
-            Chest chest = other.GetComponent<Chest>();
-
             if (chest != null && !chest.isOpen)
-             {
+            {
                 int bonus = chest.OpenChest(
                     coinsCollected,
                     diamondsCollected,
@@ -199,13 +199,13 @@ public class PlayerPlatformerController : MonoBehaviour
             }
         }
 
-        // Condición de Victoria
+        // Bandera: condición de victoria
         else if (other.CompareTag("WinCondition"))
         {
-            CompleteLevel();
+            TryCompleteLevel();
         }
 
-        // Enemigos o trampas con Collider2D Trigger
+        // Enemigos y trampas
         else if (other.CompareTag("Enemy") ||
                  other.CompareTag("Hazard"))
         {
@@ -217,20 +217,18 @@ public class PlayerPlatformerController : MonoBehaviour
     {
         if (isDead || isRespawning) return;
 
-        // Enemigos o trampas con Collider2D normal
         if (collision.gameObject.CompareTag("Enemy") ||
             collision.gameObject.CompareTag("Hazard"))
         {
-            gameOverPanel.SetActive(true);
             StartCoroutine(RespawnAfterFall());
-           
-           
         }
     }
 
-    // Sistema de reaparición
+    // Reiniciar escena cuando el jugador muere
     private IEnumerator RespawnAfterFall()
     {
+        if (isRespawning) yield break;
+
         isRespawning = true;
 
         horizontalInput = 0f;
@@ -246,38 +244,68 @@ public class PlayerPlatformerController : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(respawnDelay);
 
-        if (gameOverPanel != null)
-         gameOverPanel.SetActive(false);
-        totalScore = 0;
-        coinsCollected = 0;
-        diamondsCollected = 0;
-        keysCollected = 0;
-        UpdateHUD();
+        Time.timeScale = 1f;
 
-        transform.position = respawnPoint.position;
-        rb.linearVelocity = Vector2.zero;
-
-        isRespawning = false;
+        SceneManager.LoadScene(
+            SceneManager.GetActiveScene().buildIndex
+        );
     }
 
+    // Comprobar todos los requisitos para ganar
+    private void TryCompleteLevel()
+    {
+        bool allCoinsCollected =
+            coinsCollected >= totalCoins;
+
+        bool allDiamondsCollected =
+            diamondsCollected >= totalDiamonds;
+
+        bool allKeysCollected =
+            keysCollected >= totalKeys;
+
+        bool chestOpened =
+            chest != null && chest.isOpen;
+
+        if (allCoinsCollected &&
+            allDiamondsCollected &&
+            allKeysCollected &&
+            chestOpened)
+        {
+            CompleteLevel();
+        }
+        else
+        {
+            Debug.Log(
+                "¡Todavía te faltan objetivos para ganar!"
+            );
+        }
+    }
+
+    // Cerrar instrucciones
     public void CloseInstructions()
     {
         if (instructionsPanel != null)
+        {
             instructionsPanel.SetActive(false);
+        }
 
         Time.timeScale = 1f;
     }
 
+    // Pausar juego
     public void TogglePause()
     {
         if (pausePanel != null)
         {
             bool isPaused = pausePanel.activeSelf;
+
             pausePanel.SetActive(!isPaused);
+
             Time.timeScale = isPaused ? 1f : 0f;
         }
     }
 
+    // Abrir configuración
     public void OpenSettingsInGame(bool open)
     {
         if (settingsPanelInGame != null)
@@ -286,56 +314,85 @@ public class PlayerPlatformerController : MonoBehaviour
         }
     }
 
+    // Muerte manual
     public void Die()
     {
-        isDead = true;
-        PlaySFX(deathSFX);
-        rb.linearVelocity = Vector2.zero;
+        if (isDead || isRespawning) return;
 
-        if (gameOverPanel != null)
-            gameOverPanel.SetActive(true);
-
-        Time.timeScale = 0f;
+        StartCoroutine(DieAndRespawn());
     }
 
+    private IEnumerator DieAndRespawn()
+    {
+        if (gameOverPanel != null)
+        {
+            gameOverPanel.SetActive(true);
+        }
+
+        yield return RespawnAfterFall();
+    }
+
+    // Completar nivel
     private void CompleteLevel()
     {
+        if (isDead) return;
+
         PlaySFX(winSFX);
 
         if (winPanel != null)
+        {
             winPanel.SetActive(true);
+        }
 
         isDead = true;
         Time.timeScale = 0f;
     }
 
+    // Reiniciar nivel desde botón
     public void RestartLevel()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+
+        SceneManager.LoadScene(
+            SceneManager.GetActiveScene().buildIndex
+        );
     }
 
+    // Volver al menú principal
     public void GoToMainMenu()
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene("Menu");
     }
 
+    // Actualizar interfaz
     private void UpdateHUD()
     {
         if (textScore != null)
+        {
             textScore.text = "Puntaje: " + totalScore;
+        }
 
         if (textCoins != null)
-            textCoins.text = $"Monedas: {coinsCollected}/{totalCoins}";
+        {
+            textCoins.text =
+                $"Monedas: {coinsCollected}/{totalCoins}";
+        }
 
         if (textDiamonds != null)
-            textDiamonds.text = $"Diamantes: {diamondsCollected}/{totalDiamonds}";
+        {
+            textDiamonds.text =
+                $"Diamantes: {diamondsCollected}/{totalDiamonds}";
+        }
 
         if (textKeys != null)
-            textKeys.text = $"Llaves: {keysCollected}/{totalKeys}";
+        {
+            textKeys.text =
+                $"Llaves: {keysCollected}/{totalKeys}";
+        }
     }
 
+    // Girar personaje
     private void FlipSprite()
     {
         if (horizontalInput < 0 && isFacingRight)
@@ -360,6 +417,7 @@ public class PlayerPlatformerController : MonoBehaviour
         }
     }
 
+    // Reproducir sonidos
     private void PlaySFX(AudioClip clip)
     {
         if (audioSource != null && clip != null)
@@ -368,11 +426,13 @@ public class PlayerPlatformerController : MonoBehaviour
         }
     }
 
+    // Dibujar comprobación de suelo
     private void OnDrawGizmosSelected()
     {
         if (groundCheck == null) return;
 
         Gizmos.color = Color.red;
+
         Gizmos.DrawWireSphere(
             groundCheck.position,
             groundCheckRadius
