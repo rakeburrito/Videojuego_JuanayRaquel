@@ -248,6 +248,11 @@ public class PlayerPlatformerController : MonoBehaviour
 
         if (gameOverPanel != null)
          gameOverPanel.SetActive(false);
+        totalScore = 0;
+        coinsCollected = 0;
+        diamondsCollected = 0;
+        keysCollected = 0;
+        UpdateHUD();
 
         transform.position = respawnPoint.position;
         rb.linearVelocity = Vector2.zero;
