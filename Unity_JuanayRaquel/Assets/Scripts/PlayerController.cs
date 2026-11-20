@@ -139,6 +139,9 @@ public class PlayerPlatformerController : MonoBehaviour
         // Caída al vacío
         if (other.CompareTag("Boundary"))
         {
+            if (gameOverPanel != null)
+                gameOverPanel.SetActive(true);
+
             StartCoroutine(RespawnAfterFall());
             return;
         }
@@ -218,7 +221,10 @@ public class PlayerPlatformerController : MonoBehaviour
         if (collision.gameObject.CompareTag("Enemy") ||
             collision.gameObject.CompareTag("Hazard"))
         {
+            gameOverPanel.SetActive(true);
             StartCoroutine(RespawnAfterFall());
+           
+           
         }
     }
 
@@ -239,6 +245,9 @@ public class PlayerPlatformerController : MonoBehaviour
         PlaySFX(deathSFX);
 
         yield return new WaitForSecondsRealtime(respawnDelay);
+
+        if (gameOverPanel != null)
+         gameOverPanel.SetActive(false);
 
         transform.position = respawnPoint.position;
         rb.linearVelocity = Vector2.zero;
